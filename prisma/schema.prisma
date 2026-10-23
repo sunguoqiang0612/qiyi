@@ -1,0 +1,170 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String   @id @default(cuid())
+  email           String   @unique @db.VarChar(191)
+  passwordHash    String   @db.VarChar(191)
+  name            String   @db.VarChar(80)
+  locale          String   @default("zh") @db.VarChar(8)
+  theme           String   @default("light") @db.VarChar(16)
+  city            String?  @db.VarChar(80)
+  latitude        Float?
+  longitude       Float?
+  aiBaseUrl       String?  @db.VarChar(255)
+  aiApiKey        String?  @db.Text
+  aiVisionModel   String?  @db.VarChar(120)
+  aiTextModel     String?  @db.VarChar(120)
+  washThreshold   Int      @default(3)
+  ntfyUrl         String?  @db.VarChar(255)
+  emailNotify     Boolean  @default(false)
+  activeProfileId String?  @db.VarChar(191)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  profiles       Profile[]
+  items          Item[]
+  outfits        Outfit[]
+  wearLogs       WearLog[]
+  suggestionLogs SuggestionLog[]
+  notifications  Notification[]
+}
+
+model Profile {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String   @db.VarChar(40)
+  relation  String   @default("self") @db.VarChar(24)
+  createdAt DateTime @default(now())
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items    Item[]
+  outfits  Outfit[]
+  wearLogs WearLog[]
+
+  @@index([userId])
+}
+
+model Item {
+  id             String    @id @default(cuid())
+  userId         String
+  profileId      String
+  name           String    @db.VarChar(80)
+  category       String    @db.VarChar(24)
+  colors         Json
+  seasons        Json
+  tags           Json
+  notes          String?   @db.Text
+  searchText     String    @default("") @db.VarChar(500)
+  imagePath      String?   @db.VarChar(255)
+  washStatus     String    @default("clean") @db.VarChar(16)
+  wearsSinceWash Int       @default(0)
+  wearCount      Int       @default(0)
+  lastWornAt     DateTime? @db.Date
+  favorite       Boolean   @default(false)
+  aiSummary      String?   @db.Text
+  aiConfidence   Int?
+  aiRaw          Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profile     Profile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  outfitItems OutfitItem[]
+  wearLogs    WearLog[]
+
+  @@index([userId, profileId])
+  @@index([userId, category])
+}
+
+model Outfit {
+  id        String   @id @default(cuid())
+  userId    String
+  profileId String
+  name      String   @db.VarChar(120)
+  occasion  String?  @db.VarChar(24)
+  notes     String?  @db.Text
+  tip       String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profile  Profile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  items    OutfitItem[]
+  wearLogs WearLog[]
+
+  @@index([userId, profileId])
+}
+
+model OutfitItem {
+  id       String @id @default(cuid())
+  outfitId String
+  itemId   String
+  slot     String @db.VarChar(24)
+
+  outfit Outfit @relation(fields: [outfitId], references: [id], onDelete: Cascade)
+  item   Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([outfitId, itemId])
+  @@index([itemId])
+}
+
+model WearLog {
+  id        String   @id @default(cuid())
+  userId    String
+  profileId String
+  itemId    String?
+  outfitId  String?
+  groupId   String   @db.VarChar(64)
+  wornOn    DateTime @db.Date
+  note      String?  @db.VarChar(255)
+  createdAt DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profile Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  item    Item?    @relation(fields: [itemId], references: [id], onDelete: SetNull)
+  outfit  Outfit?  @relation(fields: [outfitId], references: [id], onDelete: SetNull)
+
+  @@index([userId, profileId, wornOn])
+  @@index([itemId])
+  @@index([groupId])
+}
+
+model SuggestionLog {
+  id        String   @id @default(cuid())
+  userId    String
+  profileId String
+  occasion  String   @db.VarChar(24)
+  weather   Json?
+  name      String   @db.VarChar(120)
+  reasons   Json
+  tip       String?  @db.Text
+  itemIds   Json
+  signature String   @db.VarChar(512)
+  verdict   String?  @db.VarChar(16)
+  outfitId  String?  @db.VarChar(191)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String   @db.VarChar(120)
+  body      String   @db.Text
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read, createdAt])
+}
