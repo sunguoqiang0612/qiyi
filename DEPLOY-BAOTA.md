@@ -191,11 +191,13 @@ location / {
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection "upgrade";
     client_max_body_size 12m;
-    proxy_read_timeout 60s;
+    proxy_read_timeout 120s;
 }
 ```
 
 `client_max_body_size` 要大于 8MB，否则上传衣服照片会被 Nginx 直接 413。改完后重载 Nginx。
+
+`proxy_read_timeout` 要大于识图等待时间。程序调用 `chat/completions` 最多等 60 秒，反代设为 `120s`，避免模型还在返回时 Nginx 先断开。已经按旧示例配过 `60s` 的站点，改成 `120s` 后重载 Nginx。
 
 照片不需要单独做静态目录。程序用登录后的 `/api/media/...` 读取 `uploads/`。这样未登录的人拿不到别人的图片。不要把 `uploads` 配成公开的网站根目录。
 
@@ -238,6 +240,9 @@ HTTPS 站点却把 `COOKIE_SECURE` 留空一般仍能用；反过来，HTTP 站�
 
 **识图没有反应。**  
 设置页或 `.env` 里 `AI_BASE_URL`、`AI_API_KEY`、`AI_VISION_MODEL` 要同时有值。接口需要兼容 `POST {base}/chat/completions`，图片用 `image_url` 的 data URL。失败时衣服仍会按手填内容保存。
+
+**识图日志是 TimeoutError。**  
+`pm2 logs` 里出现 `The operation was aborted due to timeout`，是视觉模型超过了客户端等待时间。当前最多等 60 秒。若页面先出现 504，把网站反代的 `proxy_read_timeout` 调到 `120s` 并重载 Nginx。
 
 **天气是北京，或一直提示取不到天气。**  
 到设置里点一个城市，或自己填经纬度。天气来自 Open-Meteo，服务器需要能访问 `api.open-meteo.com`。取不到时搭配仍按月份季节生成。

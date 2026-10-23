@@ -53,6 +53,9 @@ export function extractJson(text: string): unknown {
   }
 }
 
+/** OpenAI-compatible chat/completions. Vision models such as Zhipu can exceed 25s. */
+const CHAT_TIMEOUT_MS = 60_000;
+
 async function chat(config: AiConfig, model: string, messages: unknown[]) {
   const payload = { model, messages, temperature: 0.2 };
   const send = async (withFormat: boolean) => {
@@ -65,7 +68,7 @@ async function chat(config: AiConfig, model: string, messages: unknown[]) {
       body: JSON.stringify(
         withFormat ? { ...payload, response_format: { type: "json_object" } } : payload,
       ),
-      signal: AbortSignal.timeout(25000),
+      signal: AbortSignal.timeout(CHAT_TIMEOUT_MS),
     });
     return response;
   };
